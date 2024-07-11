@@ -20,7 +20,7 @@ df2 <- as.data.frame(lapply(df2,as.numeric)) # make it all numeric
 
 res = list()
 for (i in 1:96) {
-  segs <- dpseg(x = c(1:60), y = df2[,i], minl = 10,P = 0.0001); segs
+  segs <- dpseg(x = c(1:60), y = df2[,i], minl = 10,P = 0.0001); segs # P: break-point penalty, increase to get longer segments with lower scores; minl: minimal segment length
   s <- max(subset(segs$segments, var < 2000000)$slope)
   if (s < 0){
     res[[i]] <- NA
@@ -47,3 +47,77 @@ subset(segs$segments, var < 2000000)
 ## 3 116 203   116 203  1458.242 10.15865 0.8613225 10844.35
 plot(segs)
 max(res$slope)
+
+#####
+
+
+
+############
+
+f_path <- file.path("SEAP_experimental_layout.xlsx")
+
+if (!file.exists(f_path)) {
+  f_path <- file.choose()
+}
+
+desired_sheet <- 1
+temp_read <- readxl::read_excel(f_path,sheet = desired_sheet)
+
+skip_rows1 <- NULL
+col_skip <- 0
+search_string <- "Untreated"
+
+max_cols_to_search <- ncol(temp_read)
+max_rows_to_search <- nrow(temp_read)
+
+# Note, for the - 0, you may need to add/subtract a row if you end up skipping too far later.
+while (length(skip_rows1) == 0) {
+  col_skip <- col_skip + 1
+  if (col_skip == max_cols_to_search) break
+  skip_rows1 <- which(stringr::str_detect(temp_read[1:max_rows_to_search,col_skip][[1]],search_string)) - 0
+  
+}
+
+skip_rows2 <- NULL
+col_skip <- 0
+search_string2 <- "Treated"
+
+max_cols_to_search <- ncol(temp_read)
+max_rows_to_search <- nrow(temp_read)
+
+# Note, for the - 0, you may need to add/subtract a row if you end up skipping too far later.
+while (length(skip_rows2) == 0) {
+  col_skip <- col_skip + 1
+  if (col_skip == max_cols_to_search) break
+  skip_rows2 <- which(stringr::str_detect(temp_read[1:max_rows_to_search,col_skip][[1]],search_string2)) - 0
+  
+}
+
+skip_rows <- min(c(skip_rows1[1], skip_rows2[1]))
+
+max_rows <- NULL
+col_skip <- 0
+search_string3 <- "Steps for automated analysis"
+
+while (length(max_rows) == 0) {
+  col_skip <- col_skip + 1
+  if (col_skip == max_cols_to_search) break
+  max_rows <- which(stringr::str_detect(temp_read[1:max_rows_to_search,col_skip][[1]],search_string3)) - 0
+  
+}
+
+
+# ... now we re-read from the known good starting point.
+real_data <- readxl::read_excel(
+  f_path,
+  sheet = desired_sheet,
+  skip = skip_rows-1,
+  n_max = max_rows-skip_rows-2,
+  row_names = TRUE
+)
+
+df_t <- real_data[,-1]
+cv <- as.list(c(t(df_t)))
+
+for (i in )res
+
