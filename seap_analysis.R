@@ -20,27 +20,27 @@ df2 <- as.data.frame(lapply(df2,as.numeric)) # make it all numeric
 
 res = list()
 for (i in 1:96) {
-  segs <- dpseg(x = c(1:60), y = df2[,i], minl = 10,P = 0.0001); segs # P: break-point penalty, increase to get longer segments with lower scores; minl: minimal segment length
-  s <- max(subset(segs$segments, var < 2000000)$slope)
+  segs <- dpseg(x = c(1:60), y = df2[,i], minl = 10,P = 0.00001); segs # P: break-point penalty, increase to get longer segments with lower scores; minl: minimal segment length
+  s <- max(subset(segs$segments, var < 0.01)$slope) # setting variance threshold
   if (s < 0){
     res[[i]] <- NA
   } else {
-    res[[i]] <- (s / (18600 * 0.5)) * (200 / 40) * 10^6
+    res[[i]] <- (s / (18600 * 0.5)) * (200 / 40) * 10^6 # Beer Lambert Law
   }
   
 }
 
 res
 
-######
+###### https://github.com/cran/dpseg
 #Try dpseg in the dpseg package. We restrict the minimum length to 50 to avoid short linear stretches which may occur by chance. There are other tuning parameters available. See ?dpseg and the vignette that comes with the package for more information.
 #To make the input reproducible we need to use set.seed and have done this in the Note at the end.
 ##########
 
 ?dpseg
 
-i = 61
-segs <- dpseg(x = c(1:60), y = df2[,i], minl = 10,P = 0.0001); segs
+i = 55
+segs <- dpseg(x = c(1:60), y = df2[,i], minl = 10, P=0.00001); segs
 ## ... this output is shown just before the image ...
 subset(segs$segments, var < 2000000)
 ##    x1  x2 start end intercept    slope        r2      var
@@ -52,8 +52,7 @@ max(res$slope)
 
 
 
-############
-
+############ Cross Validation data extraction
 f_path <- file.path("SEAP_experimental_layout.xlsx")
 
 if (!file.exists(f_path)) {
@@ -112,12 +111,37 @@ real_data <- readxl::read_excel(
   f_path,
   sheet = desired_sheet,
   skip = skip_rows-1,
-  n_max = max_rows-skip_rows-2,
-  row_names = TRUE
+  n_max = max_rows-skip_rows-2
 )
 
 df_t <- real_data[,-1]
-cv <- as.list(c(t(df_t)))
+exp <- as.list(c(t(df_t)))
 
-for (i in )res
+pred <- list()
+for (i in seq(96)) {
+  if (is.na(res[i])){
+    pred[[i]] <- "Empty"
+  } else if (res[i] < 20){
+    pred[[i]] <- "Untreated"
+  } else {
+    pred[[i]] <- "Treated"
+  }
+}
+pred
 
+foo <- as.data.frame(c(pred, cv))
+mydf <- data.frame(exp = c(unlist(exp)), pred = c(unlist(pred)), stringsAsFactors = TRUE)
+
+#Import required library
+library(caret)
+
+#Creates vectors having data points
+expected_value <- factor(mydf$exp)
+predicted_value <- factor(mydf$pred)
+
+#Creating confusion matrix
+conf <- confusionMatrix(data=predicted_value, reference = expected_value)
+
+#Display results 
+conf$table
+conf
