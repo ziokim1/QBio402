@@ -54,7 +54,7 @@ seap_calc <- function(filename,
   # Calculate the concentration from the raw data
   res = list()
   for (i in 1:ncol(df)) {
-    segs <- dpseg(x = c(1:nrow(df)), y = df[,i], minl = min_l,P = 0.00001) 
+    segs <- dpseg(x = c(1:nrow(df)), y = df[,i], minl = min_l,P = break_pt_pen) 
     abs <- max(subset(segs$segments, var < 0.02)$slope) # setting variance threshold
     if (abs < 0){
       res[[i]] <- NA # for empty wells
@@ -83,7 +83,7 @@ df_tut <- as.data.frame(lapply(readxl::read_excel(path = "SEAP_raw_data.xlsx",sk
 # Restrict the minimum length to 10 to avoid short linear stretches which may occur by chance
 # Add break point penalty to see one continuous line rather than many segmented
 
-i = 96 # select the sample
+i = 46 # select the sample # 12 (trt), 46 (untrt), 96 (empty)
 segs <- dpseg(x = c(1:60), y = df_tut[,i], minl = 10, P=0.00001)
 subset(segs$segments)
 plot(segs) # Graphical visualisation
@@ -93,8 +93,8 @@ max(segs$segments$slope) # selecting the slope == dA_405/dt
 # Function for reading the design matrix
 
 design_matrix <- function(filename,
-                      search_string1="A",
-                      search_string2="H",
+                      search_string1="A", 
+                      search_string2="H", # customisable for i.e. 24 well plate
                       desired_sheet = 1){
   
   f_path <- file.path(filename)
@@ -166,5 +166,5 @@ ggbarplot(
   xlab = "Samples",
   order = unique(df$samples)) + labs(fill = "Treatment", shape = "Treatment")
 
-# Some samples show greater contrast between treatment (e.g. 5, 6, 8, 10)
-# Others show only a small difference (e.g. 4, 9, 11)
+# Some samples show only a small difference (e.g. 4, 9, 11)
+# Others show greater contrast between treatment (e.g. 5, 6, 8, 10) - potential application as a read-out system
