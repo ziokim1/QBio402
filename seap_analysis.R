@@ -1,16 +1,16 @@
 # Load packages
 library("tidyverse")
 library("ggplot2")
+library("ggpubr")
 library("readxl")
-library("gridExtra")
 library("dpseg")
 
 ###############################################################################----
 # Function for reading the machine data, then converting it into SEAP conc. in U/L
 
 seap_calc <- function(filename,
-                     search_string1="A01",
-                     search_string2="59 min",
+                     search_string1="A01", # starting position define by sample labelling
+                     search_string2="59 min", # ending position defined by time
                      min_l, # minimal segment length
                      break_pt_pen, # increase to get longer segments with lower scores
                      ext_coeff, # extinction coefficient
@@ -62,7 +62,7 @@ seap_calc <- function(filename,
       res[[i]] <- (abs / (ext_coeff * light_path)) * (cell_vol / inact_sup_vol) * 10^6 # Beer Lambert Law
     }
   }
-  return(as.list(c(t(res))))
+  return(as.numeric(c(t(res))))
 }
 
 conc <- seap_calc(filename = "SEAP_raw_data.xlsx",
@@ -83,7 +83,7 @@ df_tut <- as.data.frame(lapply(readxl::read_excel(path = "SEAP_raw_data.xlsx",sk
 # Restrict the minimum length to 10 to avoid short linear stretches which may occur by chance
 # Add break point penalty to see one continuous line rather than many segmented
 
-i = 92 # select the sample
+i = 96 # select the sample
 segs <- dpseg(x = c(1:60), y = df_tut[,i], minl = 10, P=0.00001)
 subset(segs$segments)
 plot(segs) # Graphical visualisation
@@ -135,7 +135,7 @@ design_matrix <- function(filename,
     n_max = max_row1-skip_row1+1
   )
   samples <- samples[,-1]
-  samples <- as.list(c(t(samples)))
+  samples <- as.factor(c(t(samples)))
   
   trt <- readxl::read_excel(
     f_path,
@@ -144,18 +144,27 @@ design_matrix <- function(filename,
     n_max = max_row2-skip_row2+1
   )
   trt <- trt[,-1]
-  trt <- as.list(c(t(trt)))
+  trt <- as.factor(c(t(trt)))
   
-  return(cbind(samples, trt))
+  return(data.frame(samples, trt))
 }
 
 ###############################################################################----
 # Building the final dataframe
 foo <- design_matrix(filename = "SEAP_experimental_layout.xlsx")
-df <- as.data.frame(cbind(foo, conc))
+df <- cbind(foo, conc)
+df <- na.omit(df)
 
+# Now graph with mean value, with error bar, dot points of individual values for each sample
+ggbarplot(
+  df, x = "samples", y = "conc", 
+  add = c("mean_sd", "jitter"), 
+  add.params = list(shape = "trt"),
+  fill= "trt", palette = c("#807F7F", "#BF504D"),
+  position = position_dodge(0.8),
+  ylab = "[SEAP] (U/L)",
+  xlab = "Samples",
+  order = unique(df$samples)) + labs(fill = "Treatment", shape = "Treatment")
 
-### Now only the graph with mean value, with Std error bar, dot points of individual values left :)
-
-
-
+# Some samples show greater contrast between treatment (e.g. 5, 6, 8, 10)
+# Others show only a small difference (e.g. 4, 9, 11)
