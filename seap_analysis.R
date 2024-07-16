@@ -14,7 +14,7 @@ df_tut <- as.data.frame(lapply(readxl::read_excel(path = "SEAP_raw_data.xlsx",sk
 # Restrict the minimum length to 10 to avoid short linear stretches which may occur by chance
 # Add break point penalty to see one continuous line rather than many segmented
 
-i = 46 # select the sample # 12 (trt), 46 (untrt), 96 (empty)
+i = 96 # select the sample # 12 (trt), 46 (untrt), 96 (empty)
 segs <- dpseg(x = c(1:60), y = df_tut[,i], minl = 10, P=0.00001)
 subset(segs$segments)
 plot(segs) # Graphical visualisation
@@ -169,7 +169,6 @@ ggbarplot(
 ###############################################################################----
 # Assess the standard error & fold change
 
-
 seap_summary <- function(data,
                          rep){
   
@@ -181,7 +180,7 @@ seap_summary <- function(data,
   df_sum <- df_sum[order(df_sum$samples),]
   
   a <- list()
-  for (i in seq(1,nrow(df_sum)-1,2)){
+  for (i in seq(1,nrow(df_sum)-1,2)){ # calculate the fold change
     b <- df_sum[i,3]/df_sum[i+1,3]
     a <- append(a, b)
   }
@@ -197,9 +196,11 @@ seap_summary(df, rep=4)
 # Sample 9 = 3.647
 # Sample 11 = 5.934
 
-# Others show greater contrast between treatment (e.g. 6, 8, 10)
+# Others show greater contrast between treatment (e.g. 5, 6, 10)
 # Sample 5 = 77.399
 # Sample 6 = 120.582
 # Sample 10 = 123.843
 
 # SEAP is a good reporter for these samples.
+
+## TODO: implement pairwise ANOVA
