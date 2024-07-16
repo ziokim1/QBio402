@@ -6,18 +6,33 @@ library("readxl")
 library("dpseg")
 
 ###############################################################################----
+# dpseg Tutorial: 
+
+df_tut <- as.data.frame(lapply(readxl::read_excel(path = "SEAP_raw_data.xlsx",skip = 9,n_max = 60)[,-c(1,2)],as.numeric))
+?dpseg # minl & P
+
+# Restrict the minimum length to 10 to avoid short linear stretches which may occur by chance
+# Add break point penalty to see one continuous line rather than many segmented
+
+i = 46 # select the sample # 12 (trt), 46 (untrt), 96 (empty)
+segs <- dpseg(x = c(1:60), y = df_tut[,i], minl = 10, P=0.00001)
+subset(segs$segments)
+plot(segs) # Graphical visualisation
+max(segs$segments$slope) # selecting the slope == dA_405/dt
+
+###############################################################################----
 # Function for reading the machine data, then converting it into SEAP conc. in U/L
 
 seap_calc <- function(filename,
-                     search_string1="A01", # starting position define by sample labelling
-                     search_string2="59 min", # ending position defined by time
-                     min_l, # minimal segment length
-                     break_pt_pen, # increase to get longer segments with lower scores
-                     ext_coeff, # extinction coefficient
-                     light_path, # light path in 96-well plate
-                     cell_vol, # cell culture supernatant volume added to the well
-                     inact_sup_vol, # inactivated supernatant / dilution
-                     desired_sheet = 1){
+                      search_string1="A01", # starting position define by sample labelling
+                      search_string2="59 min", # ending position defined by time
+                      min_l, # minimal segment length
+                      break_pt_pen, # increase to get longer segments with lower scores
+                      ext_coeff, # extinction coefficient
+                      light_path, # light path in 96-well plate
+                      cell_vol, # cell culture supernatant volume added to the well
+                      inact_sup_vol, # inactivated supernatant / dilution
+                      desired_sheet = 1){
   
   f_path <- file.path(filename)
   temp_read <- readxl::read_excel(f_path,sheet = desired_sheet)
@@ -72,30 +87,15 @@ conc <- seap_calc(filename = "SEAP_raw_data.xlsx",
                   light_path = 0.5, # cm
                   cell_vol = 200, # ul
                   inact_sup_vol = 40 # ul
-                  )
-
-###############################################################################----
-# dpseg Tutorial: 
-
-df_tut <- as.data.frame(lapply(readxl::read_excel(path = "SEAP_raw_data.xlsx",skip = 9,n_max = 60)[,-c(1,2)],as.numeric))
-?dpseg # minl & P
-
-# Restrict the minimum length to 10 to avoid short linear stretches which may occur by chance
-# Add break point penalty to see one continuous line rather than many segmented
-
-i = 46 # select the sample # 12 (trt), 46 (untrt), 96 (empty)
-segs <- dpseg(x = c(1:60), y = df_tut[,i], minl = 10, P=0.00001)
-subset(segs$segments)
-plot(segs) # Graphical visualisation
-max(segs$segments$slope) # selecting the slope == dA_405/dt
+)
 
 ###############################################################################----
 # Function for reading the design matrix
 
 design_matrix <- function(filename,
-                      search_string1="A", 
-                      search_string2="H", # customisable for i.e. 24 well plate
-                      desired_sheet = 1){
+                          search_string1="A", 
+                          search_string2="H", # customisable for i.e. 24 well plate
+                          desired_sheet = 1){
   
   f_path <- file.path(filename)
   temp_read <- readxl::read_excel(f_path,sheet = desired_sheet)
@@ -166,5 +166,27 @@ ggbarplot(
   xlab = "Samples",
   order = unique(df$samples)) + labs(fill = "Treatment", shape = "Treatment")
 
+###############################################################################----
+# Assess the fold change
+
+bilan <- aggregate(conc~samples + trt,data=df, mean)
+bilan <- bilan[order(bilan$samples),]
+
+a <- list()
+for (i in seq(1,21,2)){
+  b <- bilan[i,3]/bilan[i+1,3]
+  a <- append(a, b)
+}
+data.frame(unique(bilan[,1]), unlist(a))
+
 # Some samples show only a small difference (e.g. 4, 9, 11)
-# Others show greater contrast between treatment (e.g. 5, 6, 8, 10) - potential application as a read-out system
+# Sample 4 = 0.628
+# Sample 9 = 3.647
+# Sample 11 = 5.934
+
+# Others show greater contrast between treatment (e.g. 6, 8, 10)
+# Sample 5 = 77.399
+# Sample 6 = 120.582
+# Sample 10 = 123.843
+
+# SEAP is a good reporter
