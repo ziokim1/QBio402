@@ -155,21 +155,10 @@ foo <- design_matrix(filename = "SEAP_experimental_layout.xlsx")
 df <- cbind(foo, conc)
 df <- na.omit(df)
 
-# Now graph with mean value, with error bar, dot points of individual values for each sample
-ggbarplot(
-  df, x = "samples", y = "conc", 
-  add = c("mean_sd", "jitter"), 
-  add.params = list(shape = "trt"),
-  fill= "trt", palette = c("#807F7F", "#BF504D"),
-  position = position_dodge(0.8),
-  ylab = "[SEAP] (U/L)",
-  xlab = "Samples",
-  order = unique(df$samples)) + labs(fill = "Treatment", shape = "Treatment")
-
 ###############################################################################----
-# Assess the standard error & fold change
+# Assess the standard error & statistical significance & fold change
 
-seap_summary <- function(data,
+summary_stats <- function(data,
                          rep){
   
   df_sum <- aggregate(conc~samples + trt,data=data, mean)[,-3]
@@ -179,17 +168,29 @@ seap_summary <- function(data,
   df_sum <- data.frame(df_sum, conc_bar, conc_sd, conc_stderr)
   df_sum <- df_sum[order(df_sum$samples),]
   
-  a <- list()
-  for (i in seq(1,nrow(df_sum)-1,2)){ # calculate the fold change
-    b <- df_sum[i,3]/df_sum[i+1,3]
-    a <- append(a, b)
-  }
-  df_fc <- data.frame(samples = unique(df_sum[,1]), fc = unlist(a))
   
-  return(list(df_sum, df_fc))
+  p_val <- list() # One way ANOVA p-value calculation
+  for (j in 1:11){
+    df_sub <- subset(df, samples == unlist(unique(df[,1])[j]))
+    p <- oneway.test(df_sub$conc ~ df_sub$trt, data = df_sub)$p.value
+    p_val <- append(p_val, p)
+  }
+  df_pval <- data.frame(samples = unique(df[,1]), p_value = unlist(p_val))
+  
+  
+  fc <- list() # Fold change calculation
+  for (i in seq(1,nrow(df_sum)-1,2)){
+    b <- df_sum[i,3]/df_sum[i+1,3]
+    fc <- append(fc, b)
+  }
+  df_fc <- data.frame(samples = unique(df_sum[,1]), fc = unlist(fc))
+  
+  return(list(df_sum, df_pval, df_fc))
 }
 
-seap_summary(df, rep=4)
+summary_stats(df, rep=4)
+
+# All samples show a significant (p_val < 0.05) difference between treatment vs. untreated
 
 # Some samples show only a small difference (e.g. 4, 9, 11)
 # Sample 4 = 0.628
@@ -203,4 +204,14 @@ seap_summary(df, rep=4)
 
 # SEAP is a good reporter for these samples.
 
-## TODO: implement pairwise ANOVA
+
+# Now graph with mean value, with error bar, dot points of individual values for each sample
+ggbarplot(
+  df, x = "samples", y = "conc", 
+  add = c("mean_sd", "jitter"), 
+  add.params = list(shape = "trt"),
+  fill= "trt", palette = c("#807F7F", "#BF504D"),
+  position = position_dodge(0.8),
+  ylab = "[SEAP] (U/L)",
+  xlab = "Samples",
+  order = unique(df$samples)) + labs(fill = "Treatment", shape = "Treatment")
