@@ -167,17 +167,30 @@ ggbarplot(
   order = unique(df$samples)) + labs(fill = "Treatment", shape = "Treatment")
 
 ###############################################################################----
-# Assess the fold change
+# Assess the standard error & fold change
 
-bilan <- aggregate(conc~samples + trt,data=df, mean)
-bilan <- bilan[order(bilan$samples),]
 
-a <- list()
-for (i in seq(1,21,2)){
-  b <- bilan[i,3]/bilan[i+1,3]
-  a <- append(a, b)
+seap_summary <- function(data,
+                         rep){
+  
+  df_sum <- aggregate(conc~samples + trt,data=data, mean)[,-3]
+  conc_bar <- aggregate(conc~samples + trt,data=data, mean)[,3]
+  conc_sd <- aggregate(conc~samples + trt,data=data, sd)[,3]
+  conc_stderr <- conc_sd/sqrt(rep)
+  df_sum <- data.frame(df_sum, conc_bar, conc_sd, conc_stderr)
+  df_sum <- df_sum[order(df_sum$samples),]
+  
+  a <- list()
+  for (i in seq(1,nrow(df_sum)-1,2)){
+    b <- df_sum[i,3]/df_sum[i+1,3]
+    a <- append(a, b)
+  }
+  df_fc <- data.frame(samples = unique(df_sum[,1]), fc = unlist(a))
+  
+  return(list(df_sum, df_fc))
 }
-data.frame(unique(bilan[,1]), unlist(a))
+
+seap_summary(df, rep=4)
 
 # Some samples show only a small difference (e.g. 4, 9, 11)
 # Sample 4 = 0.628
@@ -189,4 +202,4 @@ data.frame(unique(bilan[,1]), unlist(a))
 # Sample 6 = 120.582
 # Sample 10 = 123.843
 
-# SEAP is a good reporter
+# SEAP is a good reporter for these samples.
